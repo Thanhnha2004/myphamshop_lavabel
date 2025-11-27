@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -54,5 +55,13 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class, 'subcategory_id', 'id');
+    }
+
+    /**
+     * Quan hệ 1:N: Product có thể có mặt trong nhiều mục Yêu thích (Favourites).
+     */
+    public function favourites(): HasMany
+    {
+        return $this->hasMany(Favourite::class, 'product_id', 'id');
     }
 }

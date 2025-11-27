@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Product;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 /**
@@ -11,6 +12,41 @@ use Illuminate\Support\Collection;
  */
 class UserProductController extends Controller
 {
+    public function index(Request $request)
+    {
+        $query = Product::with(['brand', 'category', 'images']);
+
+        // Lấy tham số từ request
+        $search = $request->query('search');
+        $brandId = $request->query('brand_id');
+        $categoryId = $request->query('category_id');
+
+        // Tìm kiếm theo tên sản phẩm
+        if ($search) {
+            $query->where('name', 'LIKE', "%{$search}%");
+        }
+
+        // Lọc theo thương hiệu
+        if ($brandId) {
+            $query->where('brand_id', $brandId);
+        }
+
+        // Lọc theo danh mục
+        if ($categoryId) {
+            $query->where('subcategory_id', $categoryId);
+        }
+
+        // Sắp xếp và phân trang
+        $products = $query->orderBy('id', 'DESC')->paginate(10);
+
+        return response()->json([
+            'message' => 'Lấy danh sách sản phẩm thành công.',
+            'data' => $products,
+            'search_parameters' => $request->query(),
+        ], 200);
+    }
+
+
     /**
      * Lấy các sản phẩm hot (Sản phẩm mới nhất).
      *
@@ -140,7 +176,7 @@ class UserProductController extends Controller
 
         // Định dạng giá tiền
         $formattedPrice = number_format($product->price, 0, ',', '.') . 'đ';
-        
+
         // Định dạng dữ liệu sản phẩm chi tiết
         return [
             'id' => $product->id,

@@ -5,6 +5,9 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\FavouriteController;
+use App\Http\Controllers\UserBrandController;
+use App\Http\Controllers\UserCategoryController;
 use App\Http\Controllers\UserProductController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,7 +23,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::prefix('api')->group(function () {    
+Route::prefix('api')->group(function () {
     // Lấy dữ liệu cho trang chủ
     Route::get('/home/hotProducts', [UserProductController::class, 'getHotProducts']);
     Route::get('/home/brands', [UserProductController::class, 'getBrands']);
@@ -28,10 +31,16 @@ Route::prefix('api')->group(function () {
     Route::get('/home/lipstickProducts', [UserProductController::class, 'getLipstickProducts']);
     Route::get('/home/skincareProducts', [UserProductController::class, 'getSkincareProducts']);
     Route::get('/products/{id}', [UserProductController::class, 'getProductDetail']);
+
+    Route::get('/products', [UserProductController::class, 'index']);
+    Route::get('/categories', [UserCategoryController::class, 'index']);
+    Route::get('/brands', [UserBrandController::class, 'index']);
+
+    Route::get('products/favourites', [FavouriteController::class, 'index']);
 });
 
 // --- ROUTES DÀNH CHO KHU VỰC ADMIN ---
-Route::prefix('admin')->group(function () {    
+Route::prefix('admin')->group(function () {
     // 1. Quản lý Thương hiệu
     Route::get('/brands', [BrandController::class, 'index']);
     Route::post('/brands', [BrandController::class, 'store']);

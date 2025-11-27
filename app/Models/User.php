@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -69,7 +70,6 @@ class User extends Authenticatable
         return $this->belongsToMany(Product::class, 'favourites', 'user_id', 'product_id');
     }
 
-
     /**
      * Kiểm tra xem người dùng có phải là Admin không
      */
@@ -77,4 +77,5 @@ class User extends Authenticatable
     {
         return $this->role === self::ROLE_ADMIN;
     }
+
 }
