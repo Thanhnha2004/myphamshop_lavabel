@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
@@ -167,48 +167,41 @@ class ProductController extends Controller
         DB::beginTransaction();
 
         try {
-            // 1️⃣ Xóa ảnh cũ
-            foreach ($product->images as $image) {
-                if ($image->public_id) {
-                    Cloudinary::destroy($image->public_id);
+            $oldImages = $product->images;
+            foreach ($oldImages as $image) {
+                if (Storage::disk('public')->exists($image->url)) {
+                    Storage::disk('public')->delete($image->url);
                 }
                 $image->delete();
             }
 
-            // 2️⃣ Upload ảnh mới
-            foreach ($request->file('images') as $file) {
-                $upload = Cloudinary::upload(
-                    $file->getRealPath(),
-                    [
-                        'folder' => 'products'
-                    ]
-                );
+            $uploadedFiles = Arr::wrap($request->file('images'));
+            foreach ($uploadedFiles as $file) {
+                $filePath = $file->store('product_images', 'public');
 
                 ProductImage::create([
                     'product_id' => $product->id,
-                    'url' => $upload['secure_url'],   // ✅ ĐÚNG
-                    'public_id' => $upload['public_id'], // ✅ ĐÚNG
+                    'url' => $filePath,
                 ]);
             }
 
             DB::commit();
 
+            $product->load(['images']);
+
             return response()->json([
                 'message' => 'Cập nhật hình ảnh sản phẩm thành công.',
-                'data' => $product->images()->get(),
+                'data' => $product->images,
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('UPLOAD CLOUDINARY ERROR: ' . $e->getMessage());
-
+            Log::error('LỖI SERVER: Giao dịch Update Image bị Rollback. Chi tiết: ' . $e->getMessage());
             return response()->json([
-                'error' => 'Lỗi khi upload hình ảnh.',
+                'error' => 'Lỗi server khi cập nhật hình ảnh.',
                 'details' => $e->getMessage()
             ], 500);
         }
     }
-
 
     public function destroy($id)
     {
@@ -217,13 +210,12 @@ class ProductController extends Controller
         DB::beginTransaction();
 
         try {
-            foreach ($product->images as $image) {
-                if ($image->public_id) {
-                    Cloudinary::destroy($image->public_id);
-                }
-            }
+            $product->images->each(function ($image) {
+                Storage::disk('public')->delete($image->url);
+            });
 
             $product->images()->delete();
+
             $product->delete();
 
             DB::commit();
@@ -231,15 +223,12 @@ class ProductController extends Controller
             return response()->json([
                 'message' => 'Xóa sản phẩm thành công.',
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
-
             return response()->json([
                 'error' => 'Không thể xóa sản phẩm.',
                 'details' => $e->getMessage()
             ], 500);
         }
     }
-
 }
