@@ -6,9 +6,8 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'https://mypham-9vk5.vercel.app',
-    ],
+    'allowed_origins' => ['*'],
+
 
     'allowed_origins_patterns' => [],
 

@@ -46,7 +46,6 @@ Route::post('/vnpay/create', [VnPayController::class, 'createPayment']);
 Route::get('/vnpay/return', [VnPayController::class, 'vnpReturn']);
 Route::post('/vnpay/ipn', [VnPayController::class, 'ipnHandler']);
 
-
 //1.Quan li thuong hieu
 Route::get('/brands', [BrandController::class, 'index']);
 Route::post('/brands', [BrandController::class, 'store']);
