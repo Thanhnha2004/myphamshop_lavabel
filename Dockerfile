@@ -1,27 +1,32 @@
 FROM php:8.0-apache
 
-# Cài extension cần cho Laravel
-RUN docker-php-ext-install pdo pdo_mysql
+# System deps
+RUN apt-get update && apt-get install -y \
+    git zip unzip curl libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql zip
 
-# Enable rewrite
+# Enable apache rewrite
 RUN a2enmod rewrite
 
-# Set thư mục web
 WORKDIR /var/www/html
 
-# Copy source code
+# Copy composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Copy source
 COPY . .
 
-# Set quyền
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
+# Cài vendor
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader
 
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-RUN composer install --no-dev --optimize-autoloader
+# Quyền thư mục
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Apache config
-COPY ./.docker/vhost.conf /etc/apache2/sites-available/000-default.conf
+# Apache vhost
+COPY .docker/vhost.conf /etc/apache2/sites-available/000-default.conf
 
 EXPOSE 80
