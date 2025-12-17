@@ -9,8 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProductController extends Controller
 {
@@ -35,7 +35,6 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        // Validation
         $request->validate([
             'name' => 'required|string|max:255|unique:products,name',
             'description' => 'nullable|string',
@@ -141,7 +140,6 @@ class ProductController extends Controller
 
             $product->load(['brand', 'category', 'images']);
 
-
             return response()->json([
                 'message' => 'Cập nhật thông tin sản phẩm thành công.',
                 'data' => $product,
@@ -167,21 +165,33 @@ class ProductController extends Controller
         DB::beginTransaction();
 
         try {
+            // Xóa ảnh cũ trên Cloudinary
             $oldImages = $product->images;
             foreach ($oldImages as $image) {
-                if (Storage::disk('public')->exists($image->url)) {
-                    Storage::disk('public')->delete($image->url);
+                if ($image->public_id) {
+                    Cloudinary::destroy($image->public_id);
                 }
                 $image->delete();
             }
 
+            // Upload ảnh mới lên Cloudinary
             $uploadedFiles = Arr::wrap($request->file('images'));
             foreach ($uploadedFiles as $file) {
-                $filePath = $file->store('product_images', 'public');
+                $uploadedFile = Cloudinary::upload(
+                    $file->getRealPath(),
+                    [
+                        'folder' => 'product_images',
+                        'resource_type' => 'image'
+                    ]
+                );
+
+                $url = $uploadedFile->getSecurePath();
+                $publicId = $uploadedFile->getPublicId();
 
                 ProductImage::create([
                     'product_id' => $product->id,
-                    'url' => $filePath,
+                    'url' => $url,
+                    'public_id' => $publicId,
                 ]);
             }
 
@@ -210,12 +220,14 @@ class ProductController extends Controller
         DB::beginTransaction();
 
         try {
+            // Xóa tất cả ảnh trên Cloudinary
             $product->images->each(function ($image) {
-                Storage::disk('public')->delete($image->url);
+                if ($image->public_id) {
+                    Cloudinary::destroy($image->public_id);
+                }
             });
 
             $product->images()->delete();
-
             $product->delete();
 
             DB::commit();

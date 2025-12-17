@@ -7,7 +7,7 @@ use App\Models\Brand;
 use App\Models\BrandImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class BrandController extends Controller
 {
@@ -41,16 +41,23 @@ class BrandController extends Controller
                 'brand_name' => $request->brand_name,
             ]);
 
-            // Xử lý ảnh
+            // Upload ảnh lên Cloudinary
             if ($request->hasFile('logo_image')) {
-                $path = $request->file('logo_image')->store('brands', 'public');
+                $uploadedFile = Cloudinary::upload(
+                    $request->file('logo_image')->getRealPath(),
+                    [
+                        'folder' => 'brands',
+                        'resource_type' => 'image'
+                    ]
+                );
 
-                // Chuẩn hoá đường dẫn ảnh
-                $cleanPath = trim($path);
+                $url = $uploadedFile->getSecurePath();
+                $publicId = $uploadedFile->getPublicId();
 
                 BrandImage::create([
                     'brand_id' => $brand->id,
-                    'url' => $cleanPath,
+                    'url' => $url,
+                    'public_id' => $publicId, // Lưu public_id để xóa sau này
                 ]);
             }
 
@@ -101,21 +108,33 @@ class BrandController extends Controller
                 'brand_name' => $request->brand_name,
             ]);
 
-            // Nếu có ảnh mới → xoá ảnh cũ + thêm ảnh mới
+            // Nếu có ảnh mới
             if ($request->hasFile('logo_image')) {
-
+                
+                // Xóa ảnh cũ trên Cloudinary
                 if ($oldLogo = $brand->logo) {
-                    Storage::disk('public')->delete(trim($oldLogo->url));
+                    if ($oldLogo->public_id) {
+                        Cloudinary::destroy($oldLogo->public_id);
+                    }
                     $oldLogo->delete();
                 }
 
                 // Upload ảnh mới
-                $path = $request->file('logo_image')->store('brands', 'public');
-                $cleanPath = trim($path);
+                $uploadedFile = Cloudinary::upload(
+                    $request->file('logo_image')->getRealPath(),
+                    [
+                        'folder' => 'brands',
+                        'resource_type' => 'image'
+                    ]
+                );
+
+                $url = $uploadedFile->getSecurePath();
+                $publicId = $uploadedFile->getPublicId();
 
                 BrandImage::create([
                     'brand_id' => $brand->id,
-                    'url' => $cleanPath,
+                    'url' => $url,
+                    'public_id' => $publicId,
                 ]);
             }
 
@@ -149,8 +168,9 @@ class BrandController extends Controller
         DB::beginTransaction();
 
         try {
-            if ($brand->logo) {
-                Storage::disk('public')->delete(trim($brand->logo->url));
+            // Xóa ảnh trên Cloudinary
+            if ($brand->logo && $brand->logo->public_id) {
+                Cloudinary::destroy($brand->logo->public_id);
                 $brand->logo()->delete();
             }
 
