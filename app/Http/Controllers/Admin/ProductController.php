@@ -157,42 +157,38 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
+        // Validate cho cả trường hợp 1 ảnh hoặc nhiều ảnh
         $request->validate([
-            'images' => 'required|array',
+            'images' => 'required',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         DB::beginTransaction();
 
         try {
-            // Xóa ảnh cũ trên Cloudinary
             $oldImages = $product->images;
             foreach ($oldImages as $image) {
-                if ($image->public_id) {
-                    Cloudinary::destroy($image->public_id);
-                }
                 $image->delete();
             }
 
+            // Lấy files - xử lý cả trường hợp 1 ảnh hoặc nhiều ảnh
+            $files = $request->file('images');
+
+            // Nếu là single file, chuyển thành array
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+
             // Upload ảnh mới lên Cloudinary
-            $uploadedFiles = Arr::wrap($request->file('images'));
-            foreach ($uploadedFiles as $file) {
-                $uploadedFile = Cloudinary::upload(
-                    $file->getRealPath(),
-                    [
-                        'folder' => 'product_images',
-                        'resource_type' => 'image'
-                    ]
-                );
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $result = $file->storeOnCloudinary('product_images');
 
-                $url = $uploadedFile->getSecurePath();
-                $publicId = $uploadedFile->getPublicId();
-
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'url' => $url,
-                    'public_id' => $publicId,
-                ]);
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'url' => $result->getSecurePath(),
+                    ]);
+                }
             }
 
             DB::commit();
